@@ -4,6 +4,7 @@ import threading
 import xmlrpc.client
 from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.server import SimpleXMLRPCRequestHandler
+import hashlib
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
    rpc_paths = ('/RPC2',)  # XML Request Handler
@@ -15,8 +16,22 @@ class ServerFile:
        self.nearby_list = []
        self.already_req_servers = []
        self.file_hashes = {}
+       self.token = None
        self.lock = threading.Lock()
 
+   def acquire_lock(self):
+       with self.lock:
+           if self.token is None or self.token == self.server_id:
+               self.token = self.server_id
+               return True
+           return False
+
+   def release_lock(self):
+       with self.lock:
+           if self.token == self.server_id:
+               self.token = None
+               return True
+           return False
    def get_files(self, filename):  # to fetch the required file
        current_server = 'http://' + self.server_id[0] + ':' + str(self.server_id[1])
        if filename in self.files:
@@ -50,17 +65,25 @@ class ServerFile:
            return "File not available"
 
    def save_files(self, filename, content):  # This function is used to save the incoming files from the Content Providers
-       file_hash = hashlib.sha256(content.data).hexdigest()
-       if file_hash not in self.file_hashes:
-           self.files[filename] = content.data
-           self.file_hashes[file_hash] = filename  # Store the hash to detect duplicates
-           with open(filename, "wb") as file:
-               file.write(content.data)
-           print(f"File '{filename}' updated on Server {self.server_id}.")
-           return "Success"
-       else:
-           print(f"Duplicate file '{filename}' detected. Not updating the server.")
-           return "Duplicate file"
+       if self.acquire_lock():
+           try:
+               file_hash = hashlib.sha256(content.data).hexdigest()
+               if file_hash not in self.file_hashes:
+                   self.files[filename] = content.data
+                   self.file_hashes[file_hash] = filename  # Store the hash to detect duplicates
+                   with open(filename, "wb") as file:
+                       file.write(content.data)
+                   print(f"File '{filename}' updated on Server {self.server_id}.")
+                   return "Success"
+               else:
+                   print(f"Duplicate file '{filename}' detected. Not updating the server.")
+                   return "Duplicate file"
+           finally:
+               self.release_lock()
+               next_server_id = self.neighbors[self.server_id]
+               next_server_url = f"http://localhost:{8000 + next_server_id}"
+               next_server_proxy = xmlrpc.client.ServerProxy(next_server_url)
+               next_server_proxy.acquire_lock()
 
    def serve(self):  # Server instantiation
        server1 = SimpleXMLRPCServer(self.server_id, requestHandler=RequestHandler,
