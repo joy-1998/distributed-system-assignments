@@ -1,39 +1,48 @@
 # Import Statements needed for content provider to function
 import xmlrpc.client
+import threading
 import time
 
-class ContentProviders:
-   def __init__(self, available_servers, lock_server_url):
-       self.server_list = available_servers
-       self.lock_server_url = lock_server_url
 
-   def send_files(self, filename):  # to send the files to the specified servers
-       try:
-           with open(filename, "rb") as file:
-               file_content = xmlrpc.client.Binary(file.read())  # to read the files that are available
-           lock_server_proxy = xmlrpc.client.ServerProxy(self.lock_server_url)
-           while not lock_server_proxy.acquire_lock():
-               print("Waiting for lock...")
-               time.sleep(1)
-           for server in self.server_list:
-               server_proxy = xmlrpc.client.ServerProxy(server)
-               result = server_proxy.save_files(filename, file_content)
-               if result == "Success":
-                   print(f"File '{filename}' transmitted to server at {server}")
-               else:
-                   print(f"Error occurred while sending the required file '{filename}' to the server {server}: {result}")
-           lock_server_proxy.release_lock()
-       except Exception as e:
-           print(f"Error occurred while sending the file '{filename}': {str(e)}")
+class ContentProvider:
+    def __init__(self, file_srv_url):
+        self.server_proxy = xmlrpc.client.ServerProxy(file_srv_url)
 
+    def send_file(self, filename):
+        print(f"Attempting to send file '{filename}'...")
+        with open(filename, "rb") as file:
+            file_content = xmlrpc.client.Binary(file.read())
+            result = self.server_proxy.save_files(filename, file_content)
+            if result == "Success":
+                print(f"File '{filename}' sent successfully.")
+            else:
+                print(f"Error occurred while sending the required file "
+                      f"'{filename}' to the server {server}: {result}")
 
-   def content_provider(self, filename):
-       while True:  # Loop executes until interrupted by the user
-           self.send_files(filename)
-           time.sleep(120)  # Wait for 120 seconds before re-sending the files - this is done for replication at all times
+    def acquire_lock_thread(self, filename):
+        while True:
+            result = self.server_proxy.acquire_lock()
+            if result:
+                try:
+                    print(f"Lock acquired for file '{filename}'.")
+                    self.send_file(filename)
+                finally:
+                    time.sleep(10)
+                    self.server_proxy.release_lock()
+                    print(f"Lock released for file '{filename}'.")
+                    self.content_provider(filename)
+            else:
+                print("Lock not available. Waiting...")
+                time.sleep(10)
+
+    def content_provider(self, filename):
+        while True:
+            self.acquire_lock_thread(filename)
+
 
 if __name__ == "__main__":
-    server_list = ["http://localhost:8080"]
-    lock_server_url = "http://localhost:8081"
-    content_provider = ContentProviders(server_list, lock_server_url)
-    content_provider.content_provider('file1.txt')
+    server_url = "http://localhost:8080"
+    content_provider = ContentProvider(server_url)
+    lock_thread = threading.Thread(target=content_provider.acquire_lock_thread, args=("file1.txt",))
+    lock_thread.start()
+    lock_thread.join()

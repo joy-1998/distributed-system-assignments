@@ -1,8 +1,10 @@
 import threading
 from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 
+
 class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ('/RPC2',)
+
 
 class LockServer:
     def __init__(self, server_id):
@@ -22,6 +24,7 @@ class LockServer:
         server.register_instance(self)
         print(f"Lock Server on {self.server_id} has been started")
         server.serve_forever()
+
 
 if __name__ == "__main__":
     PORT = 8081
