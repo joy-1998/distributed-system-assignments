@@ -19,24 +19,6 @@ class ServerFile:
         self.nearby_list = []
         self.already_req_servers = []
         self.file_hashes = {}
-        self.token = None
-        self.lock = threading.Lock()
-
-    def acquire_lock(self):
-        with self.lock:
-            if self.token is None or self.token != self.server_id:
-                self.token = self.server_id
-                print("lock acquired")
-                return True
-            return False
-
-    def release_lock(self):
-        with self.lock:
-            if self.token == self.server_id:
-                self.token = None
-                print("lock released")
-                return True
-            return False
 
     def get_files(self, filename):  # to fetch the required file
         current_server = 'http://' + self.server_id[0] + ':' + str(self.server_id[1])
@@ -72,21 +54,20 @@ class ServerFile:
 
     def save_files(self, filename,
                    content):  # This function is used to save the incoming files from the Content Providers
-        if self.token == self.server_id:
-            try:
-                file_hash = hashlib.sha256(content.data).hexdigest()
-                if file_hash not in self.file_hashes:
-                    self.files[filename] = content.data
-                    self.file_hashes[file_hash] = filename  # Store the hash to detect duplicates
-                    with open(filename, "wb") as file:
-                        file.write(content.data)
-                    print(f"File '{filename}' updated on Server {self.server_id}.")
-                    return "Success"
-                else:
-                    print(f"Duplicate file '{filename}' detected. Not updating the server.")
-                    return "Duplicate file"
-            finally:
-                self.release_lock()
+        try:
+            file_hash = hashlib.sha256(content.data).hexdigest()
+            if file_hash not in self.file_hashes:
+                self.files[filename] = content.data
+                self.file_hashes[file_hash] = filename  # Store the hash to detect duplicates
+                with open(filename, "wb") as file:
+                    file.write(content.data)
+                print(f"File '{filename}' updated on Server {self.server_id}.")
+                return "Success"
+            else:
+                print(f"Duplicate file '{filename}' detected. Not updating the server.")
+                return f'file with name \'{filename}\' already exists on the server'
+        finally:
+            print("finally")
 
     def serve(self):  # Server instantiation
         server1 = SimpleXMLRPCServer(self.server_id, requestHandler=RequestHandler,
