@@ -15,10 +15,10 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 class ServerFile:
     def __init__(self, server_id):
         self.server_id = server_id  # (CURRENT_IP, PORT)
-        self.files = {}
-        self.nearby_list = []
-        self.already_req_servers = []
-        self.file_hashes = {}
+        self.files = {}  # file storage
+        self.nearby_list = []  # near by servers list
+        self.already_req_servers = []  # this would be executed when there are multiple servers involved
+        self.file_hashes = {}  # global hash value storage as document model
 
     def get_files(self, filename):  # to fetch the required file
         current_server = 'http://' + self.server_id[0] + ':' + str(self.server_id[1])
@@ -33,12 +33,12 @@ class ServerFile:
                     try:
                         socket.setdefaulttimeout(5)
                         nearby_proxy = xmlrpc.client.ServerProxy(nearby)
-                        print("BeforeCall")
+                        print("Before files get call")
                         try:
-                            file_content = nearby_proxy.get_files(filename)
+                            file_content = nearby_proxy.get_files(filename)  # used by the clients to fetch files
                         except socket.timeout:
                             print("timeout")
-                            self.already_req_servers.append(nearby)
+                            self.already_req_servers.append(nearby)  # to record the existing servers list
                             return "File not available"
                         print("AfterCall")
                         if file_content != "File not available":
@@ -55,19 +55,21 @@ class ServerFile:
     def save_files(self, filename,
                    content):  # This function is used to save the incoming files from the Content Providers
         try:
-            file_hash = hashlib.sha256(content.data).hexdigest()
+            file_hash = hashlib.sha256(content.data).hexdigest()  # hash extraction for the incoming file generation
             if file_hash not in self.file_hashes:
-                self.files[filename] = content.data
+                # checking if the file_has is part of the existing hash list that is maintained globally
+                self.files[filename] = content.data  # assignment of file content to files
                 self.file_hashes[file_hash] = filename  # Store the hash to detect duplicates
                 with open(filename, "wb") as file:
                     file.write(content.data)
                 print(f"File '{filename}' updated on Server {self.server_id}.")
                 return "Success"
-            else:
+            else:  # this gets executed when there is a file hash already present on the server
                 print(f"Duplicate file '{filename}' detected. Not updating the server.")
                 return f'file with name \'{filename}\' already exists on the server'
+                # the file name will be returned back to the server
         finally:
-            print("finally")
+            print("Server Critical Execution has been completed")
 
     def serve(self):  # Server instantiation
         server1 = SimpleXMLRPCServer(self.server_id, requestHandler=RequestHandler,
