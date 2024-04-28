@@ -105,7 +105,7 @@ class ContentProvider:
 
 if __name__ == "__main__":
     server_url = "http://localhost:8080"
-    content_provider = ContentProvider(server_url, 8081, [('localhost', 8082)])
+    content_provider = ContentProvider(server_url, 8081, [('localhost', 8082), ('localhost', 8083)])
     lock_thread = threading.Thread(target=content_provider.acquire_lock_thread, args=("file1.txt",))
     lock_thread.daemon = True  # Set the thread as daemon to stop with the main thread
     lock_thread.start()
