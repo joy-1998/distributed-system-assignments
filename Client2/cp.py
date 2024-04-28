@@ -5,7 +5,7 @@ import xmlrpc.server
 
 
 class ContentProvider:
-    def __init__(self, file_srv_url, port, peers):
+    def __init__(self, file_srv_url, current_ip, port, peers):
         self.initd_lock_rqst = None
         self.server_proxy = xmlrpc.client.ServerProxy(file_srv_url)
         self.port = port
@@ -13,8 +13,9 @@ class ContentProvider:
         self.lock_acqrd = False
         self.rqsts_rcvd = 0
         self.lock = threading.Lock()
+        self.current_ip = current_ip
 
-        self.server = xmlrpc.server.SimpleXMLRPCServer(('localhost', self.port), allow_none=True)
+        self.server = xmlrpc.server.SimpleXMLRPCServer((current_ip, self.port), allow_none=True)
         self.server.register_introspection_functions()
         self.server.register_instance(self)
         self.server_thread = threading.Thread(target=self.server.serve_forever)
@@ -96,8 +97,9 @@ class ContentProvider:
 
 
 if __name__ == "__main__":
-    server_url = "http://localhost:8080"
-    content_provider = ContentProvider(server_url, 8082, [('localhost', 8081), ('localhost', 8083)])
+    server_url = "http://172.31.12.87:8080"
+    current_ip = "172.31.4.249"
+    content_provider = ContentProvider(server_url, current_ip, 8082, [('172.31.11.56', 8081), ('172.31.4.249', 8083)])
     lock_thread = threading.Thread(target=content_provider.ack_lock, args=("file2.txt",))
     lock_thread.daemon = True  # Set the thread as daemon to stop with the main thread
     lock_thread.start()  # thread start for the starting the lock

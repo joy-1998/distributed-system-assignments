@@ -31,11 +31,11 @@ class ClientFile:
 
 
 if __name__ == "__main__":
-    current_ip = "172.31.13.91"  # Current Clients ip locations
+    current_ip = "172.31.4.249"  # Current Clients ip locations
     client_port = 8000
     servers_nearby = {  # This dictionary declaration is made here as an assumption that the server distances are known
-        "localhost": 150,
-        "localhost": 100,
+        "172.31.12.87": 150,
+        "172.31.12.87": 100,
     }
     client = ClientFile(servers_nearby, current_ip, client_port)
     requestFile = input("Enter the required file name : ")  # Input declaration to receive the file input from the user

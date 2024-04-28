@@ -85,3 +85,9 @@ if __name__ == "__main__":
     server = ServerFile((CURRENT_IP, PORT))  # sending the current server ip and desired port as a tuple
     server.nearby_list = ["http://localhost:8080"]  # list of servers with their private servers
     threading.Thread(target=server.serve).start()  # Threads that are started
+
+    try:
+        while True:
+            time.sleep(1)  # Keeping the initial thread active
+    except KeyboardInterrupt:  # Key Interrupt handling
+        print("Terminating...")
